@@ -22,7 +22,7 @@ class Median:
             i = self.Parent(i)
 
     def build_max_heap(self):
-        for i in range(len(self.low_array) // 2, -1, -1):
+        for i in reversed(range(0, len(self.low_array) // 2)):
             self.max_heapify(i)
 
     def max_heapify(self, i):
@@ -64,7 +64,7 @@ class Median:
             self.min_heapify(smallest)
 
     def build_min_heap(self):
-        for i in range(len(self.low_array) // 2, -1, -1):
+        for i in reversed(range(0, len(self.low_array) // 2)):
             self.min_heapify(i)
 
     def min_heap_insert(self, key):
