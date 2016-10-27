@@ -15,7 +15,7 @@ class Median:
 
     def heap_increase_key(self, i, key):
         if key < self.low_array[i]:
-            return SyntaxError("new key smaller than current key")
+            return SyntaxError("New key smaller than current key")
         self.low_array[i] = key
         while i > 0 and self.low_array[self.Parent(i)] < self.low_array[i]:
             self.low_array[i], self.low_array[self.Parent(i)] = self.low_array[self.Parent(i)], self.low_array[i]
