@@ -2,13 +2,14 @@
 from multiprocessing import Pool, Manager, Lock
 import multiprocessing
 import os
-import time
+
+
 
 def file_reader(fl):
     data = list()
     with open(fl, 'r') as file:
         for line in file:
-            data +=line.strip().split(' ')
+            data +=line.strip().lower().split(' ')
     return data
 
 def remove_file(fl):
@@ -19,29 +20,35 @@ def remove_file(fl):
 
 
 def mapper(lns):
-    #print(multiprocessing.current_process().name)
-    #map_file_name = "MappersData/" + multiprocessing.current_process().name + ".txt"
-    #print(lns)
-    #f = open("Key/MapperFilesKeys.txt", "a")
-    #map_key_list = file_reader("Key/MapperFilesKeys.txt")
-    #if (map_file_name not in map_key_list):
-    #    print(map_file_name)
-    #    print(map_key_list)
-    #    f.write(map_file_name + '\n')
-    #    f.close()
+    """
+    print("Mapper")
+    print(multiprocessing.current_process().name)
+    tup_line = list()
+    map_filename = "Data/Mapper"+multiprocessing.current_process().name + ".txt"
+    FW = open(map_filename, 'a')
+    for word in lns:
+        tup_line.append((1, word.lower()))
+        FW.write(word+",1"+'\n')
+    FW.close()
+    with open("Key/Mappers.txt", "a") as fl:
+        fl.write(map_filename)
+
+    return tup_line
+    """
     print("Mapper")
     print(multiprocessing.current_process().name)
     tup_line = list()
     for word in lns:
-           tup_line.append((1, word.lower()))
-           with open("MappersData/"+multiprocessing.current_process().name + ".txt", 'a') as FW:
-               FW.write(word+",1"+'\n')
+        tup_line.append((1, word.lower()))
+        with open("MappersData/" + multiprocessing.current_process().name + ".txt", 'a') as FW:
+            FW.write(word + ",1" + '\n')
     return tup_line
+
 
 def write_in_file(name, dic):
     with open(name, 'a') as F:
         for key, value in dic.items():
-            F.write(key + ", "+str(value) + '\n')
+            F.write(key + ","+str(value) + '\n')
 
 def combiner(map_file):
     dict_words = dict()
@@ -58,7 +65,41 @@ def combiner(map_file):
     write_in_file("CombinersData/" + multiprocessing.current_process().name + ".txt", dict_words)
     return dict_words
 
-def shuffle_sort(comb_file):
+def shuffler(directory):
+    print("SHUFFLE")
+    data = []
+    comb_files = os.listdir(directory)
+    for chunk in comb_files:
+            with open(directory+'/' + chunk) as fl:
+                for line in fl:
+                    data.append(line.strip().split(","))
+
+    data.sort(key=lambda x:x[0])
+
+    for i in range(len(data)):
+            with open('Data/Shuffle_' + data[i][0] + ".txt", 'a') as FW:
+                FW.write(data[i][0]+","+data[i][1]+'\n')
+
+def reducer(shuf_file):
+    print("Reducer")
+    print(shuf_file)
+    data =[]
+    with open('Data/'+ shuf_file) as fl:
+        for line in fl:
+            data.append(line.strip().split(','))
+    with open("ReducersData/Reduce_"+shuf_file, 'a') as F:
+        if len(data) == 1:
+            F.write(data[0][0]+','+data[0][1])
+            pass
+        else:
+            pass
+            F.write(data[0][0]+','+str(sum([int(el[1]) for el in data])))
+
+def outer(files):
+    with open("WordsCount.txt", 'a') as fl:
+        for file in files:
+            with open('ReducersData/'+file) as source:
+                fl.write(source.readline() +'\n')
 
 
 def divide(seq, num):
@@ -73,8 +114,13 @@ def divide(seq, num):
     return out
 
 
-remove_file("Key/MapperFilesKeys.txt")
+
 file = 'data.txt'
+
+os.mkdir("CombinersData")
+os.mkdir("MappersData")
+os.mkdir("Data")
+os.mkdir("ReducersData")
 
 mappers_number = 3
 
@@ -85,70 +131,26 @@ print(division)
 #print(out_lines)
 
 
-"""
-#################################
-output = multiprocessing.Queue()
-
-#MAP
-map_processes = [multiprocessing.Process(target=mapper, args=([division[x]])) for x in range(mappers_number)]
-
-# Run processes
-for p in map_processes:
-    p.start()
-
-# Exit the completed processes
-for p in map_processes:
-    p.join()
-
-file_lst = os.listdir("MappersData")
-
-#Combine
-combine_processes = [multiprocessing.Process(target=combiner, args=([file_lst[x]])) for x in range(mappers_number)]
-
-
-# Run processes
-for p in combine_processes:
-    p.start()
-
-# Exit the completed processes
-for p in combine_processes:
-    p.join()
-
-##################################################
-
-"""
-
-
-
-
-
-
-
-
-
-#dict_line=list()py
-
 pool = Pool(processes=mappers_number,)
-#m = multiprocessing.Manager()
-#l = m.Lock()
-#map_lock = partial(mapper, l)
 mapped_words = pool.map(mapper,division)
-#pool.close()
-#pool.join()
 
 
-
-
-
-#map_key_list = file_reader("Key/MapperFilesKeys.txt")
-#print(map_key_list)
 file_lst = os.listdir("MappersData")
-#func = partial(combiner, l)
 combine_words = pool.map(combiner, file_lst)
 
-#sort = partition(itertools.chain(*mapped_words))
-#print(time.time() - start_time)\
+
 print(mapped_words)
 print(combine_words)
 
-#print(multiprocessing.current_process().name + ".txt")
+
+shuffler("CombinersData")
+
+reducer_number = 6
+reduce_lst = os.listdir("Data")
+pool2 = Pool(processes=reducer_number,)
+
+
+print(reduce_lst)
+pool2.map(reducer,reduce_lst)
+
+outer(os.listdir("ReducersData"))
