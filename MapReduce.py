@@ -1,12 +1,31 @@
-import getopt
-from multiprocessing import Pool, Manager, Lock
-import multiprocessing
-import os, csv
+"""10.04.2018"""
 
-import sys
+#author Ostap Kharysh
+
+"""
+Map Reduce implementation containing: Map, Combine, Shuffle&Sort, Reduce phases.
+The Architecture is designed to provide tracking of how the data changes during phases
+mentioned above. Idea of such implementation is also based on thoughts that MapReduce algorithm
+could be run on distributed computers so each of them should store their operation results in DB
+ (.txt files in my case). There are also directories each of them contains data of specific phase.
+"""
+
+"""
+Try to run: python3 MapReduce.py -i data.txt -o foo.txt -m 4  --c y
+"""
+
+
+
+import getopt
+from multiprocessing import Pool
+import multiprocessing, sys, os, csv
 
 
 def file_reader(fl):
+    """
+    :param fl: input file with words
+    :return: returns the array of words
+    """
     data = list()
     if fl.endswith('.csv'):
         with open(fl, newline='') as csvfile:
@@ -20,6 +39,10 @@ def file_reader(fl):
     return data
 
 def remove_file(fl):
+    """
+    :param fl: file
+    :return:  removes file from the system
+    """
     try:
         os.remove(fl)
     except FileNotFoundError:
@@ -28,22 +51,9 @@ def remove_file(fl):
 
 def mapper(lns):
     """
-    print("Mapper")
-    print(multiprocessing.current_process().name)
-    tup_line = list()
-    map_filename = "Data/Mapper"+multiprocessing.current_process().name + ".txt"
-    FW = open(map_filename, 'a')
-    for word in lns:
-        tup_line.append((1, word.lower()))
-        FW.write(word+",1"+'\n')
-    FW.close()
-    with open("Key/Mappers.txt", "a") as fl:
-        fl.write(map_filename)
-
-    return tup_line
+    :param lns: takes words
+    :return: files of data chunks
     """
-    print("Mapper")
-    print(multiprocessing.current_process().name)
     tup_line = list()
     for word in lns:
         tup_line.append((1, word.lower()))
@@ -53,14 +63,21 @@ def mapper(lns):
 
 
 def write_in_file(name, dic):
+    """
+    :param file name:
+    :param dictionary of words and their count:
+    :return file or words and their frequencies:
+    """
     with open(name, 'a') as F:
         for key, value in dic.items():
             F.write(key + ","+str(value) + '\n')
 
 def combiner(map_file):
+    """
+    :param takes mapper chanks of data:
+    :return files of combined words from chunks:
+    """
     dict_words = dict()
-    print("Combiner")
-    print(multiprocessing.current_process().name)
     with open("MappersData/"+map_file, 'r') as fl:
             #print("MappersData/"+map_file)
             for ln in fl:
@@ -73,7 +90,11 @@ def combiner(map_file):
     return dict_words
 
 def shuffler(directory):
-    print("SHUFFLE")
+    """
+    :param takes the names of intended files to be shuffled:
+    :return returns files of shuffled & sorted words:
+    """
+
     data = []
     comb_files = os.listdir(directory)
     for chunk in comb_files:
@@ -84,14 +105,16 @@ def shuffler(directory):
     data.sort(key=lambda x:x[0])
 
     for i in range(len(data)):
-            with open('Data/Shuffle_' + data[i][0] + ".txt", 'a') as FW:
+            with open('ShufflersData/Shuffle_' + data[i][0] + ".txt", 'a') as FW:
                 FW.write(data[i][0]+","+data[i][1]+'\n')
 
 def reducer(shuf_file):
-    print("Reducer")
-    print(shuf_file)
+    """
+    :param takes files of shuffled words
+    :return: return the words and their frequencies in files
+    """
     data =[]
-    with open('Data/'+ shuf_file) as fl:
+    with open('ShufflersData/'+ shuf_file) as fl:
         for line in fl:
             data.append(line.strip().split(','))
     with open("ReducersData/Reduce_"+shuf_file, 'a') as F:
@@ -103,6 +126,11 @@ def reducer(shuf_file):
             F.write(data[0][0]+','+str(sum([int(el[1]) for el in data])))
 
 def outer(files, outputfile):
+    """
+    :param files: takes all reduced files
+    :param outputfile: intended name of file od all words and their numbers
+    :return:  file with words and their frequencies
+    """
     with open(outputfile, 'a') as fl:
         for file in files:
             with open('ReducersData/'+file) as source:
@@ -111,6 +139,11 @@ def outer(files, outputfile):
 
 
 def divide(seq, num):
+    """
+    :param seq: data list of words
+    :param num: prefered divider
+    :return: divided sequence of data
+    """
     avg = round(len(seq) /num)
     out = []
     last = 0
@@ -122,47 +155,54 @@ def divide(seq, num):
     return out
 
 def map_reduce( infile, outfile, mappers_number, reducers_number, combine='y'):
-    #infile = 'data.txt'
+    """
 
-    os.mkdir("CombinersData")
-    os.mkdir("MappersData")
-    os.mkdir("Data")
-    os.mkdir("ReducersData")
+    :param infile: file taken for words' count
+    :param outfile: file take to store results of wordcount
+    :param mappers_number: number or mappers
+    :param reducers_number: number of reducers
+    :param combine: checker to do combine phase or not
+    :return: returns file of counted words
+    """
+    COMBINERS_STORAGE = "CombinersData"
+    MAPPERS_STORAGE = "MappersData"
+    SHUFFLERS_STORAGE = "ShufflersData"
+    REDUCERS_STORAGE = "ReducersData"
+
+    os.mkdir(COMBINERS_STORAGE)
+    os.mkdir(MAPPERS_STORAGE)
+    os.mkdir(SHUFFLERS_STORAGE)
+    os.mkdir(REDUCERS_STORAGE)
 
     out_lines = file_reader(infile)
-    # print(out_lines)
-    if mappers_number is not int:
-        mappers_number=len(out_lines)
+
+    if type(mappers_number) == str:
+       mappers_number=round(len(out_lines)/5 +1)
 
     division = divide(out_lines, mappers_number)
-    print(division)
-    # print(out_lines)
 
     pool = Pool(processes=mappers_number, )
-    #mapped_words = \
     pool.map(mapper, division)
 
-    file_lst = os.listdir("MappersData")
-    #combine_words =
-    print(combine)
+    file_lst = os.listdir(MAPPERS_STORAGE)
     if combine !='n':
         pool.map(combiner, file_lst)
-        shuffler("CombinersData")
+        shuffler(COMBINERS_STORAGE)
     else:
-        shuffler("MappersData")
+        shuffler(MAPPERS_STORAGE)
 
-    reduce_lst = os.listdir("Data")
-    if reducers_number is not int:
-        reducers_number = len(reduce_lst)
+    reduce_lst = os.listdir(SHUFFLERS_STORAGE)
+    if type(reducers_number) == str:
+        reducers_number = round(len(reduce_lst)/5 +1)
 
     pool2 = Pool(processes=reducers_number, )
 
-    print(reduce_lst)
     pool2.map(reducer, reduce_lst)
 
-    outer(os.listdir("ReducersData"), outfile)
+    outer(os.listdir(REDUCERS_STORAGE), outfile)
 
-#map_reduce()
+
+
 def run(argv):
     mappers_number = '(Not specified) Will depend on the input file size'
     reducer_number = '(Not specified) Will depend on the input file size'
@@ -202,46 +242,3 @@ def run(argv):
 
 if __name__=="__main__":
     run(sys.argv[1:])
-    #map_reduce()
-
-"""
-file = 'test.csv'
-os.mkdir("CombinersData")
-os.mkdir("MappersData")
-os.mkdir("Data")
-os.mkdir("ReducersData")
-
-mappers_number = 3
-
-out_lines = file_reader(file)
-#print(out_lines)
-division = divide(out_lines, mappers_number)
-print(division)
-#print(out_lines)
-
-
-pool = Pool(processes=mappers_number,)
-mapped_words = pool.map(mapper,division)
-
-
-file_lst = os.listdir("MappersData")
-combine_words = pool.map(combiner, file_lst)
-
-
-print(mapped_words)
-print(combine_words)
-
-
-shuffler("CombinersData")
-
-reducer_number = 6
-reduce_lst = os.listdir("Data")
-pool2 = Pool(processes=reducer_number,)
-
-
-print(reduce_lst)
-pool2.map(reducer,reduce_lst)
-
-outer(os.listdir("ReducersData"))
-
-"""
