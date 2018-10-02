@@ -9,7 +9,6 @@ class Point:
         self.x = x
         self.y = y
         self.a = 1
-        self.b = 1
 
         if self.y**2 == self.x**3 + self.a*self.x:
             print("This point doesn't belong to curve")
