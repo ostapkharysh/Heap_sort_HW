@@ -1,6 +1,13 @@
 # curve in Weierstrass form: y^2 = x^3 + ax + b
 
 import math
+import gmpy
+
+
+def check_if_on_curve(x, y, a, b, mod):
+    left = y ** 2
+    right = x ** 3 + a * x + b
+    return left % mod == right % mod
 
 
 class Point:
@@ -9,45 +16,53 @@ class Point:
         self.x = x
         self.y = y
         self.a = 1
-
-        if self.y**2 == self.x**3 + self.a*self.x:
-            print("This point doesn't belong to curve")
-        else:
-            "This point doesn't belong to the curve"
-
-    def double(self):
-        """
-        Used in case two points are equal
-        """
-        try:
-            lmb = (3 * self.x ** 2 + self.a) / (2 * self.y)
-        except ZeroDivisionError:
-            return Point(math.inf, math.inf)
-        x3 = lmb**2 - 2 * self.x
-        y3 = lmb * (self.x - x3) - self.y
-        return Point(x3, y3)
+        self.b = 4
+        self.mod = 17  # PRIME NUMBER ONLY
 
     def add(self, other):
+
         """
         Addition of two Points
         """
-        if self.x == other.x:
-            if self.y == other.y:
-                return self.double()
-            else:
-                return Point(math.inf, math.inf)
+
+        P1_on_curve = check_if_on_curve(self.x, self.y, self.a, self.b, self.mod)
+        P2_on_curve = check_if_on_curve(other.x, other.y, other.a, other.b, other.mod)
+
+        if not P1_on_curve or not P2_on_curve:
+            print("Unable to conduct the addition. A least one of these points is not on the curve.")
+            return (Point(0, 0))
+
+        if isinstance(self.x, str) and isinstance(other, str):
+            return Point(math.inf(), math.inf())
+
+        elif isinstance(self, str):
+            return other
+
+        elif isinstance(other, str):
+            return self
+
+        elif (self.x == other.x) and (self.y == other.y):
+            num = 3 * (self.x ** 2) + self.a
+            denom = 2 * self.y
+
+        elif self.x == other.x:
+            return Point(math.inf, math.inf)
         else:
-            try:
-                lmb = (other.y - self.y) / (other.x - self.x)
-            except ZeroDivisionError:
-                return Point(math.inf, math.inf)
-            x3 = lmb ** 2 - other.x - self.x
-            y3 = -(other.y + lmb * (x3 - other.x))
-            return Point(x3, y3)
+            num = other.y - self.y  # (y2 - y1)
+            denom = other.x - self.x  # (x2 - x1)
+
+        denom_mi = gmpy.invert(denom, self.mod)
+        lmb = (num * denom_mi) % self.mod
+        print(denom_mi)
+
+        x3 = (lmb ** 2 - other.x - self.x) % self.mod
+        y3 = (lmb * (self.x - x3) - self.y) % self.mod
+
+        return Point(x3, y3)
 
 
-P_1 = Point(1, 5)
-P_2 = Point(5, 1)
+P_1 = Point(0, 2)
+P_2 = Point(0, 2)
 
 P_3 = P_1.add(P_2)
 
