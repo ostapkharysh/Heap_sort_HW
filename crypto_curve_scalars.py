@@ -15,7 +15,7 @@ class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.a = 1
+        self.a = 3
         self.b = 4
         self.mod = 17  # PRIME NUMBER ONLY
 
@@ -42,7 +42,7 @@ class Point:
             return self
 
         elif (self.x == other.x) and (self.y == other.y):
-            num = 3 * (self.x ** 2) + self.a
+            num = 3 * self.x ** 2 + self.a
             denom = 2 * self.y
 
         elif self.x == other.x:
@@ -53,7 +53,6 @@ class Point:
 
         denom_mi = gmpy.invert(denom, self.mod)
         lmb = (num * denom_mi) % self.mod
-        print(denom_mi)
 
         x3 = (lmb ** 2 - other.x - self.x) % self.mod
         y3 = (lmb * (self.x - x3) - self.y) % self.mod
@@ -61,8 +60,18 @@ class Point:
         return Point(x3, y3)
 
 
-P_1 = Point(0, 2)
-P_2 = Point(0, 2)
+#On the Curve
+P_1 = Point(5, 5)
+P_2 = Point(6, 0)
+
+P_3 = P_1.add(P_2)
+
+print(P_3.x, P_3.y)
+
+print()
+
+P_1 = Point(2, 4) # Not on the Curve
+P_2 = Point(23, 1)
 
 P_3 = P_1.add(P_2)
 
