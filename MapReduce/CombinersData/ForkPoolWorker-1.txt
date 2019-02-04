@@ -1,0 +1,9 @@
+how,3
+many,2
+children,1
+do,2
+you,3
+have,2
+old,1
+are,1
+puppies,1
