@@ -1,0 +1,12 @@
+what,3
+do,2
+you,2
+mean,2
+by,1
+object,1
+know,1
+about,1
+java,2
+is,1
+virtual,1
+machine,1
